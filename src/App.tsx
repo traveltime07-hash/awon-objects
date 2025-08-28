@@ -1,15 +1,8 @@
-// src/App.tsx
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
-/**
- * AWON — Obiekty i zespół
- * Wersja z edycją nazw pokoi (dodaj/edytuj/usuń).
- * Gotowe do uruchomienia w projekcie Vite + React + TS.
- */
-
-/* =========================
-   Typy
-   ========================= */
+/** =============================
+ *  Typy
+ *  ============================= */
 
 type MemberRoleStd = "Owner" | "Manager" | "Housekeeping" | "Accounting" | "PropertyService";
 
@@ -88,9 +81,9 @@ type Property = {
   members: Member[];
 };
 
-/* =========================
-   Etykiety ról
-   ========================= */
+/** =============================
+ *  Labelki ról
+ *  ============================= */
 
 const roleLabels: Record<MemberRoleStd, string> = {
   Owner: "Właściciel",
@@ -100,9 +93,9 @@ const roleLabels: Record<MemberRoleStd, string> = {
   PropertyService: "Obsługa obiektu",
 };
 
-/* =========================
-   Presety uprawnień wg ról
-   ========================= */
+/** =============================
+ *  Presety uprawnień
+ *  ============================= */
 
 function defaultPermissions(role: string, allRoomIds: string[]): Permissions {
   const all: Permissions = {
@@ -157,21 +150,8 @@ function defaultPermissions(role: string, allRoomIds: string[]): Permissions {
       showPrices: false,
       showPaymentStatus: false,
     },
-    notes: {
-      canViewOwnerNotes: true,
-      canAddStaffNotes: true,
-      canEditOwnNotes: true,
-      canEditOwnerNotes: false,
-      canAttachPhotos: true,
-      canViewDamageReports: true,
-    },
-    cleaning: {
-      canViewCleaningTasks: true,
-      canMarkCleaningDone: true,
-      canAssignCleaningTasks: false,
-      canChangeCleaningDate: false,
-      canSeeCleaningAnnotations: true,
-    },
+    notes: { canViewOwnerNotes: true, canAddStaffNotes: true, canEditOwnNotes: true, canEditOwnerNotes: false, canAttachPhotos: true, canViewDamageReports: true },
+    cleaning: { canViewCleaningTasks: true, canMarkCleaningDone: true, canAssignCleaningTasks: false, canChangeCleaningDate: false, canSeeCleaningAnnotations: true },
     ops: { canExportCalendar: false, canPrintCalendar: true, canCommentOnTask: true },
   };
 
@@ -223,28 +203,28 @@ function defaultPermissions(role: string, allRoomIds: string[]): Permissions {
   }
 }
 
-/* =========================
-   Mock „API”
-   ========================= */
-
-const fakeApi = {
-  async addProperty(p: Partial<Property>) { await sleep(250); return { ok: true, id: crypto.randomUUID() } as const; },
-  async deleteProperty(id: string) { await sleep(200); return { ok: true } as const; },
-  async saveProperty(partial: any) { await sleep(200); return { ok: true } as const; },
-  async saveInvoice(payload: any) { await sleep(200); return { ok: true } as const; },
-  async addRoom(room: any) { await sleep(150); return { ok: true, id: crypto.randomUUID() } as const; },
-  async deleteRoom(id: string) { await sleep(120); return { ok: true } as const; },
-  async updateRoom(_: { id: string; name: string }) { await sleep(140); return { ok: true } as const; }, // <— NOWE
-  async addMember(m: any) { await sleep(180); return { ok: true, id: crypto.randomUUID() } as const; },
-  async updateMember(m: any) { await sleep(180); return { ok: true } as const; },
-  async deleteMember(id: string) { await sleep(150); return { ok: true } as const; },
-};
+/** =============================
+ *  Fake API (mock) – parametry z podkreślnikiem,
+ *  żeby TS nie zgłaszał „unused”.
+ *  ============================= */
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/* =========================
-   APP ROOT
-   ========================= */
+const fakeApi = {
+  async addProperty(_p: Partial<Property>)       { await sleep(250); return { ok: true, id: crypto.randomUUID() } as const; },
+  async deleteProperty(_id: string)              { await sleep(200); return { ok: true } as const; },
+  async saveProperty(_partial: any)              { await sleep(200); return { ok: true } as const; },
+  async saveInvoice(_payload: any)               { await sleep(200); return { ok: true } as const; },
+  async addRoom(_room: any)                      { await sleep(150); return { ok: true, id: crypto.randomUUID() } as const; },
+  async deleteRoom(_id: string)                  { await sleep(120); return { ok: true } as const; },
+  async addMember(_m: any)                       { await sleep(180); return { ok: true, id: crypto.randomUUID() } as const; },
+  async updateMember(_m: any)                    { await sleep(180); return { ok: true } as const; },
+  async deleteMember(_id: string)                { await sleep(150); return { ok: true } as const; },
+};
+
+/** =============================
+ *  APP ROOT
+ *  ============================= */
 
 export default function ObjectsApp() {
   const [screen, setScreen] = useState<"home" | "property">("home");
@@ -256,7 +236,6 @@ export default function ObjectsApp() {
   ]);
 
   const selected = properties.find((p) => p.id === selectedId) || null;
-
   const openProperty = (id: string) => { setSelectedId(id); setScreen("property"); };
 
   const createProperty = async (draft: Partial<Property>) => {
@@ -292,7 +271,9 @@ export default function ObjectsApp() {
     setBusy(false);
   };
 
-  const persistProperty = (updated: Property) => { setProperties((arr) => arr.map((p) => (p.id === updated.id ? updated : p))); };
+  const persistProperty = (updated: Property) => {
+    setProperties((arr) => arr.map((p) => (p.id === updated.id ? updated : p)));
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900" style={{
@@ -302,11 +283,21 @@ export default function ObjectsApp() {
       ["--awon-danger" as any]: "#EF4444",
     }}>
       {screen === "home" && (
-        <HomeScreen properties={properties} onOpen={openProperty} onCreate={createProperty} onDelete={removeProperty} busy={busy} />
+        <HomeScreen
+          properties={properties}
+          onOpen={openProperty}
+          onCreate={createProperty}
+          onDelete={removeProperty}
+          busy={busy}
+        />
       )}
 
       {screen === "property" && selected && (
-        <PropertyScreen property={selected} onBack={() => setScreen("home")} onPersist={persistProperty} />
+        <PropertyScreen
+          property={selected}
+          onBack={() => setScreen("home")}
+          onPersist={persistProperty}
+        />
       )}
 
       <ToastHost />
@@ -314,9 +305,9 @@ export default function ObjectsApp() {
   );
 }
 
-/* =========================
-   HOME
-   ========================= */
+/** =============================
+ *  HOME
+ *  ============================= */
 
 function HomeScreen({
   properties, onOpen, onCreate, onDelete, busy,
@@ -345,10 +336,7 @@ function HomeScreen({
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
-        <Card
-          title="Dodaj obiekt"
-          footer={<Button variant="primary" disabled={busy} onClick={() => onCreate(draft)}>Dodaj</Button>}
-        >
+        <Card title="Dodaj obiekt" footer={<Button variant="primary" disabled={busy} onClick={() => onCreate(draft)}>Dodaj</Button>}>
           <FormGrid>
             <TextInput label="Nazwa obiektu" value={draft.name ?? ""} onChange={(v) => setDraft((s) => ({ ...s, name: v }))} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -390,25 +378,16 @@ function HomeScreen({
   );
 }
 
-/* =========================
-   PROPERTY
-   ========================= */
+/** =============================
+ *  PROPERTY
+ *  ============================= */
 
-function PropertyScreen({
-  property: initialProp, onBack, onPersist,
-}: {
-  property: Property;
-  onBack: () => void;
-  onPersist: (p: Property) => void;
-}) {
+function PropertyScreen({ property: initialProp, onBack, onPersist }: { property: Property; onBack: () => void; onPersist: (p: Property) => void }) {
   const [tab, setTab] = useState<"ust" | "rooms" | "team">("ust");
   const [busy, setBusy] = useState(false);
   const [property, setProperty] = useState<Property>(initialProp);
 
-  const headerSubtitle = useMemo(
-    () => [property.city, property.country].filter(Boolean).join(", "),
-    [property.city, property.country]
-  );
+  const headerSubtitle = useMemo(() => [property.city, property.country].filter(Boolean).join(", "), [property.city, property.country]);
 
   const saveBasics = async () => {
     setBusy(true);
@@ -451,36 +430,10 @@ function PropertyScreen({
     toast("Zapisano dane do faktury");
   };
 
-  /* ------ Pokoje (dodaj/edytuj/usuń) ------ */
+  // Pokoje
   const [roomName, setRoomName] = useState("");
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
-  const [roomEditName, setRoomEditName] = useState("");
-
-  const startEditRoom = (room: Room) => {
-    setEditingRoomId(room.id);
-    setRoomEditName(room.name);
-  };
-
-  const cancelEditRoom = () => {
-    setEditingRoomId(null);
-    setRoomEditName("");
-  };
-
-  const saveRoomName = async (id: string) => {
-    const name = roomEditName.trim();
-    if (!name) return toast("Podaj nazwę pokoju");
-    setBusy(true);
-    await fakeApi.updateRoom({ id, name });
-    const updated: Property = {
-      ...property,
-      rooms: property.rooms.map((r) => (r.id === id ? { ...r, name } : r)),
-    };
-    setProperty(updated);
-    setBusy(false);
-    onPersist(updated);
-    toast("Zmieniono nazwę pokoju");
-    cancelEditRoom();
-  };
+  const [editingRoomName, setEditingRoomName] = useState("");
 
   const addRoom = async () => {
     const name = roomName.trim();
@@ -488,16 +441,13 @@ function PropertyScreen({
     setBusy(true);
     const res = await fakeApi.addRoom({ name, property_id: property.id, org_id: property.org_id });
     const updated: Property = { ...property, rooms: [...property.rooms, { id: res.id, name }] };
-    // dopasuj roomIds w uprawnieniach członków
     updated.members = updated.members.map((m) => ({
       ...m,
       permissions: {
         ...m.permissions,
         calendar: {
           ...m.permissions.calendar,
-          roomIds: m.permissions.calendar.roomScope === "all"
-            ? updated.rooms.map((r) => r.id)
-            : m.permissions.calendar.roomIds,
+          roomIds: m.permissions.calendar.roomScope === "all" ? updated.rooms.map((r) => r.id) : m.permissions.calendar.roomIds,
         },
       },
     }));
@@ -510,13 +460,9 @@ function PropertyScreen({
 
   const deleteRoom = async (id: string) => {
     if (!confirm("Usunąć pokój?")) return;
-    if (editingRoomId === id) cancelEditRoom();
     setBusy(true);
     await fakeApi.deleteRoom(id);
-    const updated: Property = {
-      ...property,
-      rooms: property.rooms.filter((r) => r.id !== id),
-    };
+    const updated: Property = { ...property, rooms: property.rooms.filter((r) => r.id !== id) };
     updated.members = updated.members.map((m) => ({
       ...m,
       permissions: {
@@ -532,17 +478,30 @@ function PropertyScreen({
     onPersist(updated);
   };
 
-  /* ------ Zespół (część skrócona – bez zmian) ------ */
+  const startEditRoom = (r: Room) => {
+    setEditingRoomId(r.id);
+    setEditingRoomName(r.name);
+  };
+  const cancelEditRoom = () => {
+    setEditingRoomId(null);
+    setEditingRoomName("");
+  };
+  const saveEditRoom = () => {
+    if (!editingRoomId) return;
+    const name = editingRoomName.trim();
+    if (!name) return toast("Podaj nazwę pokoju");
+    const updated: Property = {
+      ...property,
+      rooms: property.rooms.map((r) => (r.id === editingRoomId ? { ...r, name } : r)),
+    };
+    setProperty(updated);
+    onPersist(updated);
+    setEditingRoomId(null);
+    setEditingRoomName("");
+    toast("Zmieniono nazwę pokoju");
+  };
 
-  const stdRoleOptions: { value: MemberRoleStd | "Custom"; label: string }[] = [
-    { value: "Owner", label: roleLabels.Owner },
-    { value: "Manager", label: roleLabels.Manager },
-    { value: "Housekeeping", label: roleLabels.Housekeeping },
-    { value: "Accounting", label: roleLabels.Accounting },
-    { value: "PropertyService", label: roleLabels.PropertyService },
-    { value: "Custom", label: "Własna rola" },
-  ];
-
+  // Zespół
   const [memberDraft, setMemberDraft] = useState<{ name: string; email: string; password: string; roleSel: string; customRole: string }>({
     name: "", email: "", password: "", roleSel: "Housekeeping", customRole: ""
   });
@@ -576,7 +535,7 @@ function PropertyScreen({
     setEditingId(m.id);
     setEditDraft({ name: m.name, email: m.email, password: "", roleSel: isStd ? m.role : "Custom", customRole: isStd ? "" : m.role });
   };
-  const cancelEdit = () => { setEditingId(null); };
+  const cancelEdit = () => setEditingId(null);
   const saveEdit = async (id: string) => {
     const role = editDraft.roleSel === "Custom" ? (editDraft.customRole.trim() || "Rola") : editDraft.roleSel;
     setBusy(true);
@@ -606,7 +565,7 @@ function PropertyScreen({
 
   // Uprawnienia
   const [permFor, setPermFor] = useState<Member | null>(null);
-  const openPermissions = (m: Member) => { setPermFor(m); };
+  const openPermissions = (m: Member) => setPermFor(m);
   const closePermissions = () => setPermFor(null);
   const savePermissions = (updatedPerms: Permissions) => {
     if (!permFor) return;
@@ -691,29 +650,31 @@ function PropertyScreen({
               </div>
             </Card>
 
-            <Card title="Pokoje (tylko nazwy)">
+            <Card title="Pokoje">
               {property.rooms.length === 0 ? (
                 <div className="text-sm opacity-70">Brak pokoi — dodaj pierwszy powyżej.</div>
               ) : (
                 <ul className="space-y-2">
                   {property.rooms.map((r) => (
-                    <li key={r.id} className="border rounded-xl p-2">
+                    <li key={r.id} className="flex items-center justify-between border rounded-xl p-2">
                       {editingRoomId === r.id ? (
-                        <div className="grid md:grid-cols-6 gap-4 items-end">
-                          <TextInput label="Nazwa pokoju" value={roomEditName} onChange={setRoomEditName} />
-                          <div className="flex gap-2">
-                            <Button variant="primary" onClick={() => saveRoomName(r.id)} disabled={busy}>Zapisz</Button>
-                            <Button variant="outline" onClick={cancelEditRoom} disabled={busy}>Anuluj</Button>
-                          </div>
+                        <div className="flex items-center gap-2 w-full">
+                          <input
+                            className="border rounded-xl p-2 w-full focus:outline-none focus:ring-2 focus:ring-[var(--awon-primary)] focus:border-[var(--awon-primary)]"
+                            value={editingRoomName}
+                            onChange={(e) => setEditingRoomName(e.target.value)}
+                          />
+                          <Button variant="primary" onClick={saveEditRoom} disabled={busy}>Zapisz</Button>
+                          <Button variant="outline" onClick={cancelEditRoom} disabled={busy}>Anuluj</Button>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between">
+                        <>
                           <div className="font-medium">{r.name}</div>
                           <div className="flex gap-2">
-                            <Button onClick={() => startEditRoom(r)} disabled={busy}>Edytuj</Button>
+                            <Button onClick={() => startEditRoom(r)}>Edytuj</Button>
                             <Button variant="outline" tone="danger" onClick={() => deleteRoom(r.id)} disabled={busy}>Usuń</Button>
                           </div>
-                        </div>
+                        </>
                       )}
                     </li>
                   ))}
@@ -730,13 +691,7 @@ function PropertyScreen({
                 <TextInput label="Imię i nazwisko" value={memberDraft.name} onChange={(v) => setMemberDraft((s) => ({ ...s, name: v }))} />
                 <TextInput label="E-mail" value={memberDraft.email} onChange={(v) => setMemberDraft((s) => ({ ...s, email: v }))} />
                 <TextInput label="Hasło" value={memberDraft.password} onChange={(v) => setMemberDraft((s) => ({ ...s, password: v }))} />
-                <SelectInput
-                  label="Rola"
-                  value={memberDraft.roleSel}
-                  onChange={(v) => setMemberDraft((s) => ({ ...s, roleSel: v }))}
-                  options={["Owner","Manager","Housekeeping","Accounting","PropertyService","Custom"]}
-                  renderLabel={(v) => (roleLabels as any)[v] || (v === "Custom" ? "Własna rola" : v)}
-                />
+                <SelectInput label="Rola" value={memberDraft.roleSel} onChange={(v) => setMemberDraft((s) => ({ ...s, roleSel: v }))} options={["Owner","Manager","Housekeeping","Accounting","PropertyService","Custom"]} renderLabel={(v) => (roleLabels as any)[v] || (v === "Custom" ? "Własna rola" : v)} />
                 {memberDraft.roleSel === "Custom" && (
                   <TextInput label="Własna rola" value={memberDraft.customRole} onChange={(v) => setMemberDraft((s) => ({ ...s, customRole: v }))} />
                 )}
@@ -756,13 +711,7 @@ function PropertyScreen({
                           <TextInput label="Imię i nazwisko" value={editDraft.name} onChange={(v) => setEditDraft((s) => ({ ...s, name: v }))} />
                           <TextInput label="E-mail" value={editDraft.email} onChange={(v) => setEditDraft((s) => ({ ...s, email: v }))} />
                           <TextInput label="Nowe hasło (opcjonalnie)" value={editDraft.password} onChange={(v) => setEditDraft((s) => ({ ...s, password: v }))} />
-                          <SelectInput
-                            label="Rola"
-                            value={editDraft.roleSel}
-                            onChange={(v) => setEditDraft((s) => ({ ...s, roleSel: v }))}
-                            options={["Owner","Manager","Housekeeping","Accounting","PropertyService","Custom"]}
-                            renderLabel={(v) => (roleLabels as any)[v] || (v === "Custom" ? "Własna rola" : v)}
-                          />
+                          <SelectInput label="Rola" value={editDraft.roleSel} onChange={(v) => setEditDraft((s) => ({ ...s, roleSel: v }))} options={["Owner","Manager","Housekeeping","Accounting","PropertyService","Custom"]} renderLabel={(v) => (roleLabels as any)[v] || (v === "Custom" ? "Własna rola" : v)} />
                           {editDraft.roleSel === "Custom" && (
                             <TextInput label="Własna rola" value={editDraft.customRole} onChange={(v) => setEditDraft((s) => ({ ...s, customRole: v }))} />
                           )}
@@ -810,8 +759,8 @@ function PropertyScreen({
               ...preset,
               calendar: {
                 ...preset.calendar,
-                roomIds: preset.calendar.roomScope === "all" ? allRoomIds : preset.calendar.roomIds,
-              },
+                roomIds: preset.calendar.roomScope === "all" ? allRoomIds : preset.calendar.roomIds
+              }
             };
             savePermissions(merged);
           }}
@@ -821,9 +770,9 @@ function PropertyScreen({
   );
 }
 
-/* =========================
-   Modal uprawnień
-   ========================= */
+/** =============================
+ *  Modal: Uprawnienia
+ *  ============================= */
 
 function PermissionsModal({
   member, rooms, onClose, onSave, onApplyPreset,
@@ -834,35 +783,11 @@ function PermissionsModal({
   onSave: (p: Permissions) => void;
   onApplyPreset: (role: MemberRoleStd) => void;
 }) {
-  const [state, setState] = useState<Permissions>(() =>
-    member.permissions || defaultPermissions(member.role, rooms.map((r) => r.id))
-  );
+  const [state, setState] = useState<Permissions>(() => member.permissions || defaultPermissions(member.role, rooms.map((r) => r.id)));
 
-  const toggle = (path: string) => (val?: boolean) => {
-    setState((s) => setDeep(s, path, val ?? !getDeep(s, path)));
-  };
-  const setRoomScope = (mode: "all" | "selected") => {
-    setState((s) => ({
-      ...s,
-      calendar: {
-        ...s.calendar,
-        roomScope: mode,
-        roomIds: mode === "all" ? rooms.map((r) => r.id) : s.calendar.roomIds,
-      },
-    }));
-  };
-  const toggleRoom = (id: string) => {
-    setState((s) => {
-      const exists = s.calendar.roomIds.includes(id);
-      return {
-        ...s,
-        calendar: {
-          ...s.calendar,
-          roomIds: exists ? s.calendar.roomIds.filter((x) => x !== id) : [...s.calendar.roomIds, id],
-        },
-      };
-    });
-  };
+  const toggle = (path: string) => (val?: boolean) => { setState((s) => setDeep(s, path, val ?? !getDeep(s, path))); };
+  const setRoomScope = (mode: "all" | "selected") => { setState((s) => ({ ...s, calendar: { ...s.calendar, roomScope: mode, roomIds: mode === "all" ? rooms.map((r) => r.id) : s.calendar.roomIds } })); };
+  const toggleRoom = (id: string) => { setState((s) => { const exists = s.calendar.roomIds.includes(id); return { ...s, calendar: { ...s.calendar, roomIds: exists ? s.calendar.roomIds.filter((x) => x !== id) : [...s.calendar.roomIds, id] } }; }); };
   const applyPreset = (role: MemberRoleStd) => onApplyPreset(role);
 
   return (
@@ -891,12 +816,8 @@ function PermissionsModal({
             <div className="mt-3 border rounded-xl p-3">
               <div className="text-sm font-medium mb-2">Zakres pokoi</div>
               <div className="flex gap-3 mb-2">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="radio" name="scope" checked={state.calendar.roomScope === "all"} onChange={() => setRoomScope("all")} /> Wszystkie pokoje
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="radio" name="scope" checked={state.calendar.roomScope === "selected"} onChange={() => setRoomScope("selected")} /> Wybrane pokoje
-                </label>
+                <label className="flex items-center gap-2 text-sm"><input type="radio" name="scope" checked={state.calendar.roomScope === "all"} onChange={() => setRoomScope("all")} /> Wszystkie pokoje</label>
+                <label className="flex items-center gap-2 text-sm"><input type="radio" name="scope" checked={state.calendar.roomScope === "selected"} onChange={() => setRoomScope("selected")} /> Wybrane pokoje</label>
               </div>
               {state.calendar.roomScope === "selected" && (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -960,9 +881,9 @@ function PermissionsModal({
   );
 }
 
-/* =========================
-   Seed + utils
-   ========================= */
+/** =============================
+ *  Seed / utils
+ *  ============================= */
 
 function emptyInvoice(): InvoiceData {
   return { name: "", email: "", nip: "", address_line1: "", address_line2: "", city: "", postal_code: "", country: "Polska" };
@@ -995,9 +916,9 @@ function seedProperty(name: string, city: string): Property {
   };
 }
 
-/* =========================
-   UI Primitives
-   ========================= */
+/** =============================
+ *  UI
+ *  ============================= */
 
 function Card({ title, footer, children }: { title: string; footer?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -1043,8 +964,14 @@ function TimeInput({ label, value, onChange }: { label: string; value?: string; 
   );
 }
 
-function SelectInput({ label, value, onChange, options, renderLabel }: {
-  label: string; value: string; onChange: (v: string) => void; options: string[]; renderLabel?: (v: string) => string
+function SelectInput({
+  label, value, onChange, options, renderLabel,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  renderLabel?: (v: string) => string;
 }) {
   return (
     <label className="grid gap-1 w-full min-w-0">
@@ -1073,19 +1000,15 @@ function Button({
 }) {
   const isOutline = variant === "outline";
   const isGhost = variant === "ghost";
-
   const base = "px-3 py-2 rounded-2xl text-sm font-medium transition-colors";
+
   const className = isGhost
     ? `${base} text-[var(--awon-primary)] hover:bg-[var(--awon-ring)]/20 border border-transparent`
     : isOutline
     ? `${base} border ${tone === "danger" ? "border-red-400 text-red-600 hover:bg-red-50" : "border-indigo-300 text-indigo-700 hover:bg-indigo-50"}`
     : `${base} ${tone === "danger" ? "bg-red-500 hover:bg-red-600" : "bg-indigo-600 hover:bg-indigo-700"} text-white`;
 
-  return (
-    <button className={className} disabled={disabled} onClick={onClick}>
-      {children}
-    </button>
-  );
+  return <button className={className} disabled={disabled} onClick={onClick}>{children}</button>;
 }
 
 function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
@@ -1113,31 +1036,9 @@ function RoleBadge({ role }: { role: string }) {
   return <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${color}`}>{label}</span>;
 }
 
-function SaveBar({ busy, onSave, label }: { busy: boolean; onSave: () => void; label: string }) {
-  return <Button variant="primary" disabled={busy} onClick={onSave}>{busy ? "Zapisywanie…" : label}</Button>;
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div className="text-base font-semibold mb-2">{title}</div>
-      <div className="border rounded-2xl p-3">{children}</div>
-    </div>
-  );
-}
-
-function Checkbox({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label className="flex items-center gap-2 text-sm">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      {label}
-    </label>
-  );
-}
-
-/* =========================
-   Prosty toaster
-   ========================= */
+/** =============================
+ *  Mini toasty
+ *  ============================= */
 
 let setToast: any;
 function ToastHost() {
@@ -1147,9 +1048,9 @@ function ToastHost() {
 }
 function toast(m: string) { if (typeof setToast === "function") setToast(m); }
 
-/* =========================
-   helpers: getDeep / setDeep
-   ========================= */
+/** =============================
+ *  helpers get/setDeep
+ *  ============================= */
 
 function getDeep(obj: any, path: string): any { return path.split(".").reduce((o, k) => (o ? o[k] : undefined), obj); }
 function setDeep(obj: any, path: string, value: any) {
