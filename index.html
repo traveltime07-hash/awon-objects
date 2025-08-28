@@ -1,21 +1,22 @@
 <!doctype html>
-<html lang="en">
-  <script>
-  // Jeśli wchodzimy przez app.awonsystem.pl, a ścieżka nie zaczyna się od /app,
-  // to przekieruj na /app (działa również dla podstron).
-  (function () {
-    var host = location.hostname.toLowerCase();
-    if (host.startsWith('app.') && !location.pathname.startsWith('/app')) {
-      var rest = location.pathname + location.search + location.hash;
-      location.replace('/app' + (rest === '/' ? '' : rest));
-    }
-  })();
-</script>
+<html lang="pl">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
+    <title>AWON — Strona główna</title>
+
+    <script>
+      // Jeśli wchodzimy przez app.awonsystem.pl, a ścieżka nie zaczyna się od /app,
+      // to przekieruj na /app (działa również dla podstron).
+      (function () {
+        var host = location.hostname.toLowerCase();
+        if (host.startsWith('app.') && !location.pathname.startsWith('/app')) {
+          var rest = location.pathname + location.search + location.hash;
+          location.replace('/app' + (rest === '/' ? '' : rest));
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
