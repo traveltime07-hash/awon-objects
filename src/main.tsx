@@ -1,21 +1,35 @@
-import React from "react";
-import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import App from "./App.tsx"; // to jest Twoja obecna aplikacja (obiekty/role)
-import Landing from "./pages/Landing.tsx";
-import "./index.css";
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import './index.css'
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <Routes>
-        {/* Landing jako strona główna */}
-        <Route path="/" element={<Landing />} />
-        {/* Dotychczasowa aplikacja */}
-        <Route path="/app" element={<App />} />
-        {/* Fallback na / */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
-  </React.StrictMode>
-);
+// Aplikacja (Obiekty / role / itp.)
+import App from './App'
+
+// Landing (strona główna) – jeśli masz w src/pages/Landing.tsx:
+import Landing from './pages/Landing'
+
+const root = ReactDOM.createRoot(document.getElementById('root')!)
+
+function render() {
+  // /app oraz wszystko co dalej (np. /app/coś) – ładuj aplikację
+  if (location.pathname.startsWith('/app')) {
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    )
+  } else {
+    // w każdym innym przypadku – Landing (strona główna)
+    root.render(
+      <React.StrictMode>
+        <Landing />
+      </React.StrictMode>
+    )
+  }
+}
+
+// Pierwsze renderowanie
+render()
+
+// (opcjonalnie) Gdybyś kiedyś dodał nawigację pushState – można nasłuchiwać:
+window.addEventListener('popstate', render)
