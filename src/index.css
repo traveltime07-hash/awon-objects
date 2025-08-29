@@ -1,3 +1,8 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* drobne wygodne style */
+html, body, #root {
+  height: 100%;
+}
