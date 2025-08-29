@@ -1,9 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import App from "./App.tsx";          // to Twój obecny „ObjectsApp”
+import App from "./App.tsx";           // to jest Twoja aplikacja (ObjectsApp)
+import Landing from "./pages/Landing";  // nowa strona główna
 import "./index.css";
-import Landing from "./pages/Landing.tsx";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
