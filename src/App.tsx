@@ -1,36 +1,29 @@
-import React from "react";
-import { HashRouter, Routes, Route, Navigate, Link } from "react-router-dom";
-import Kalendarz from "./pages/Kalendarz";
+// src/App.tsx
+import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
+import Obiekty from "./pages/Obiekty";         // dostosuj nazwę/ścieżkę jeśli masz inną
+import Kalendarz from "./pages/kalendarz";     // UWAGA: małe „k” jak w repo
 
-function NotFound() {
+function Nav() {
+  const loc = useLocation();
+  const is = (p: string) => loc.pathname === p;
   return (
-    <div style={{ padding: 24 }}>
-      <h2>Nie znaleziono strony</h2>
-      <p>
-        Przejdź do{" "}
-        <Link to="/app/kalendarz" style={{ color: "#2563eb" }}>
-          kalendarza
-        </Link>
-        .
-      </p>
-    </div>
+    <nav className="flex gap-3 py-3 px-4">
+      <Link to="/obiekty"   className={is("/obiekty")   ? "font-semibold underline" : ""}>Twoje obiekty</Link>
+      <Link to="/kalendarz" className={is("/kalendarz") ? "font-semibold underline" : ""}>Kalendarz</Link>
+    </nav>
   );
 }
 
 export default function App() {
   return (
-    <HashRouter>
+    <BrowserRouter basename="/app">
+      <Nav />
       <Routes>
-        {/* start */}
-        <Route path="/" element={<Navigate to="/app/kalendarz" replace />} />
-        <Route path="/app" element={<Navigate to="/app/kalendarz" replace />} />
-
-        {/* kalendarz */}
-        <Route path="/app/kalendarz" element={<Kalendarz />} />
-
-        {/* fallback */}
-        <Route path="*" element={<NotFound />} />
+        <Route path="/" element={<Navigate to="/obiekty" replace />} />
+        <Route path="/obiekty" element={<Obiekty />} />
+        <Route path="/kalendarz" element={<Kalendarz />} />
+        <Route path="*" element={<Navigate to="/obiekty" replace />} />
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   );
 }
