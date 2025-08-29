@@ -1,7 +1,9 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
-import Obiekty from "./pages/Obiekty";      // UWAGA: wielkie „O”
-import Kalendarz from "./pages/kalendarz";  // UWAGA: małe „k” – tak jak Twój plik
+
+// Upewnij się, że te pliki naprawdę istnieją tak samo nazwane:
+import Obiekty from "./pages/Obiekty";     // "Obiekty.tsx" (duże O)
+import Kalendarz from "./pages/Kalendarz"; // "Kalendarz.tsx" (duże K)
 
 function Nav() {
   const loc = useLocation();
