@@ -1,153 +1,235 @@
 // src/pages/Obiekty.tsx
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Plus, Pencil, X, Trash2, Check } from "lucide-react";
+import { Link } from "react-router-dom";
 
-type Objekt = {
-  id: string;
-  name: string;
-  city?: string;
-  country?: string;
-  checkIn?: string;   // HH:mm
-  checkOut?: string;  // HH:mm
-};
+/** Klucze i domyślne wartości współdzielone z kalendarzem */
+const ROOMS_STORAGE_KEY = "awon_rooms";
+const DEFAULT_ROOMS = ["Ap. 1", "Ap. 2", "Ap. 3", "Ap. 4"];
 
-const LS_KEY = "awon_objects_v1";
-
-function load(): Objekt[] {
+/** Helpers: odczyt/zapis pokoi do localStorage + event dla kalendarza */
+function loadRooms(): string[] {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = localStorage.getItem(ROOMS_STORAGE_KEY);
     if (raw) {
       const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) return arr;
+      if (Array.isArray(arr) && arr.length) return arr.slice(0, 50).map(String);
     }
   } catch {}
-  // start z przykładowym obiektem (jak na screenie)
-  return [
-    { id: "obj-1", name: "Apartamenty Słoneczna", city: "Sława", country: "Polska", checkIn: "16:00", checkOut: "10:00" },
-  ];
+  return DEFAULT_ROOMS.slice();
 }
-function save(v: Objekt[]) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch {}
+function saveRooms(next: string[]) {
+  try {
+    localStorage.setItem(ROOMS_STORAGE_KEY, JSON.stringify(next));
+    window.dispatchEvent(new CustomEvent("awon:rooms-change")); // nasłuchiwane przez kalendarz
+  } catch {}
 }
 
 export default function Obiekty() {
-  const nav = useNavigate();
-  const [items, setItems] = useState<Objekt[]>(load());
-  useEffect(() => save(items), [items]);
+  const [rooms, setRooms] = useState<string[]>(loadRooms());
+  const [newName, setNewName] = useState("");
+  const [editing, setEditing] = useState<{ idx: number; value: string } | null>(null);
 
-  // formularz
-  const [name, setName]       = useState("");
-  const [addr1, setAddr1]     = useState("");
-  const [addr2, setAddr2]     = useState("");
-  const [city, setCity]       = useState("");
-  const [postal, setPostal]   = useState("");
-  const [country, setCountry] = useState("Polska");
-  const [checkIn, setCheckIn]   = useState("16:00");
-  const [checkOut, setCheckOut] = useState("10:00");
+  // nasłuch zmian z innych zakładek/okien
+  useEffect(() => {
+    const h = () => setRooms(loadRooms());
+    window.addEventListener("storage", h as any);
+    window.addEventListener("awon:rooms-change", h as any);
+    return () => {
+      window.removeEventListener("storage", h as any);
+      window.removeEventListener("awon:rooms-change", h as any);
+    };
+  }, []);
 
-  function addObject() {
-    const n = name.trim();
-    if (!n) return;
-    const id = "obj-" + Date.now().toString(36);
-    const obj: Objekt = { id, name: n, city: city.trim() || undefined, country, checkIn, checkOut };
-    setItems((prev) => [obj, ...prev]);
-    // reset minimalny
-    setName("");
-    setAddr1(""); setAddr2(""); setCity(""); setPostal("");
-  }
+  const addRoom = () => {
+    const v = newName.trim();
+    if (!v) return;
+    if (rooms.includes(v)) {
+      alert("Taka nazwa już istnieje.");
+      return;
+    }
+    const next = [v, ...rooms];
+    setRooms(next);
+    saveRooms(next);
+    setNewName("");
+  };
 
-  function removeObject(id: string) {
-    if (!confirm("Usunąć obiekt?")) return;
-    setItems((prev) => prev.filter((o) => o.id !== id));
-  }
+  const removeRoom = (idx: number) => {
+    const name = rooms[idx];
+    if (!confirm(`Usunąć obiekt „${name}”?`)) return;
+    const next = rooms.filter((_, i) => i !== idx);
+    setRooms(next);
+    saveRooms(next);
+  };
+
+  const startEdit = (idx: number) => setEditing({ idx, value: rooms[idx] });
+  const cancelEdit = () => setEditing(null);
+  const confirmEdit = () => {
+    if (!editing) return;
+    const v = editing.value.trim();
+    if (!v) return;
+    if (rooms.some((r, i) => i !== editing.idx && r === v)) {
+      alert("Taka nazwa już istnieje.");
+      return;
+    }
+    const next = rooms.map((r, i) => (i === editing.idx ? v : r));
+    setRooms(next);
+    saveRooms(next);
+    setEditing(null);
+  };
+
+  const move = (idx: number, dir: -1 | 1) => {
+    const j = idx + dir;
+    if (j < 0 || j >= rooms.length) return;
+    const next = rooms.slice();
+    const tmp = next[idx];
+    next[idx] = next[j];
+    next[j] = tmp;
+    setRooms(next);
+    saveRooms(next);
+  };
+
+  const resetDefaults = () => {
+    if (!confirm("Przywrócić domyślne obiekty?")) return;
+    setRooms(DEFAULT_ROOMS.slice());
+    saveRooms(DEFAULT_ROOMS.slice());
+  };
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6">
-      <h1 className="text-2xl font-bold">Twoje obiekty</h1>
-      <p className="text-sm text-gray-600">Dodaj obiekt, a potem zarządzaj pokojami i zespołem.</p>
+    <div className="mx-auto max-w-3xl px-4 py-6">
+      <header className="mb-4 flex items-center justify-between">
+        <h1 className="text-lg font-semibold">Twoje obiekty</h1>
+        <Link
+          to="/kalendarz"
+          className="rounded-xl bg-blue-600 px-3 py-2 text-sm text-white shadow hover:bg-blue-700"
+        >
+          Przejdź do kalendarza
+        </Link>
+      </header>
 
-      {/* karta: dodaj obiekt */}
-      <div className="mt-5 rounded-2xl border bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="text-lg font-semibold">Dodaj obiekt</div>
-          <button onClick={addObject} className="rounded-xl bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700">Dodaj</button>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3">
-          <label className="text-sm">
-            <div className="text-gray-600">Nazwa obiektu</div>
-            <input value={name} onChange={(e)=>setName(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
-          </label>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <label className="text-sm">
-              <div className="text-gray-600">Adres – linia 1</div>
-              <input value={addr1} onChange={(e)=>setAddr1(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
-            <label className="text-sm">
-              <div className="text-gray-600">Adres – linia 2</div>
-              <input value={addr2} onChange={(e)=>setAddr2(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <label className="text-sm">
-              <div className="text-gray-600">Miasto</div>
-              <input value={city} onChange={(e)=>setCity(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
-            <label className="text-sm">
-              <div className="text-gray-600">Kod pocztowy</div>
-              <input value={postal} onChange={(e)=>setPostal(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
-            <label className="text-sm">
-              <div className="text-gray-600">Kraj</div>
-              <input value={country} onChange={(e)=>setCountry(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <label className="text-sm">
-              <div className="text-gray-600">Check-in</div>
-              <input type="time" value={checkIn} onChange={(e)=>setCheckIn(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
-            <label className="text-sm">
-              <div className="text-gray-600">Check-out</div>
-              <input type="time" value={checkOut} onChange={(e)=>setCheckOut(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2" />
-            </label>
-          </div>
-        </div>
+      {/* Dodawanie nowego */}
+      <div className="mb-4 flex flex-col gap-2 rounded-2xl border p-3 sm:flex-row sm:items-center">
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="Nazwa nowego obiektu, np. „Ap. 5”"
+          className="flex-1 rounded-lg border px-3 py-2 text-sm"
+        />
+        <button
+          onClick={addRoom}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-sm text-white shadow hover:bg-emerald-700"
+        >
+          <Plus className="h-4 w-4" /> Dodaj obiekt
+        </button>
       </div>
 
-      {/* lista obiektów */}
-      <div className="mt-6 rounded-2xl border bg-white p-4 shadow-sm">
-        <div className="mb-3 text-lg font-semibold">Lista obiektów</div>
-        <div className="space-y-3">
-          {items.map((o) => (
-            <div key={o.id} className="flex items-center justify-between rounded-xl border px-4 py-3">
-              <div>
-                <div className="font-medium">{o.name}</div>
-                <div className="text-xs text-gray-600">{[o.city, o.country].filter(Boolean).join(", ")}</div>
-              </div>
-              <div className="flex gap-2">
-                {/* przejście do kalendarza; przekazujemy id obiektu jako query param (opcjonalnie) */}
-                <Link
-                  to={`/kalendarz?obj=${encodeURIComponent(o.id)}`}
-                  className="rounded-xl bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700"
-                >
-                  Wejdź
-                </Link>
-                <button
-                  onClick={() => removeObject(o.id)}
-                  className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 hover:bg-red-100"
-                >
-                  Usuń
-                </button>
-              </div>
-            </div>
-          ))}
-          {items.length === 0 && <div className="text-sm text-gray-500">Brak obiektów — dodaj pierwszy powyżej.</div>}
-        </div>
+      {/* Lista obiektów */}
+      <div className="rounded-2xl border">
+        {rooms.length === 0 ? (
+          <div className="p-4 text-sm text-gray-500">Brak obiektów — dodaj pierwszy powyżej.</div>
+        ) : (
+          <ul className="divide-y">
+            {rooms.map((name, idx) => {
+              const isEditing = editing?.idx === idx;
+              return (
+                <li key={name + "|" + idx} className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center">
+                  <div className="flex-1">
+                    {isEditing ? (
+                      <input
+                        value={editing!.value}
+                        onChange={(e) => setEditing({ idx, value: e.target.value })}
+                        className="w-full rounded-lg border px-3 py-2 text-sm"
+                        autoFocus
+                      />
+                    ) : (
+                      <div className="text-sm">
+                        <span className="mr-2 inline-flex min-w-[64px] items-center justify-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+                          #{idx + 1}
+                        </span>
+                        {name}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      title="W górę"
+                      onClick={() => move(idx, -1)}
+                      className="rounded-md border px-2 py-1 text-xs hover:bg-gray-50"
+                      disabled={idx === 0}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      title="W dół"
+                      onClick={() => move(idx, 1)}
+                      className="rounded-md border px-2 py-1 text-xs hover:bg-gray-50"
+                      disabled={idx === rooms.length - 1}
+                    >
+                      ↓
+                    </button>
+
+                    {isEditing ? (
+                      <>
+                        <button
+                          onClick={confirmEdit}
+                          className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-2 py-1 text-xs text-white hover:bg-emerald-700"
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          Zapisz
+                        </button>
+                        <button
+                          onClick={cancelEdit}
+                          className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-gray-50"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          Anuluj
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => startEdit(idx)}
+                          className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-gray-50"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edytuj
+                        </button>
+                        <button
+                          onClick={() => removeRoom(idx)}
+                          className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Usuń
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
+
+      <div className="mt-4 flex items-center justify-between">
+        <button
+          onClick={resetDefaults}
+          className="rounded-xl border px-3 py-2 text-sm hover:bg-gray-50"
+        >
+          Przywróć domyślne
+        </button>
+        <Link
+          to="/kalendarz"
+          className="rounded-xl bg-blue-600 px-3 py-2 text-sm text-white shadow hover:bg-blue-700"
+        >
+          Otwórz kalendarz
+        </Link>
+      </div>
+
+      <p className="mt-4 text-xs text-gray-500">
+        Zmiany zapisują się w przeglądarce (localStorage) i są widoczne w kalendarzu.
+      </p>
     </div>
   );
 }
