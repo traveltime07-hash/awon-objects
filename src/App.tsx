@@ -1,37 +1,35 @@
 // src/App.tsx
-import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-
-import Landing from "./pages/Landing";
+import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
+import Home from "./pages/Home";
 import Login from "./pages/Login";
-import Obiekty from "./pages/Obiekty";
-import Kalendarz from "./pages/kalendarz";
-import Admin from "./pages/Admin"; // jeśli używasz innego pliku panelu — podmień import
+import Admin from "./pages/Admin";
+import Kalendarz from "./pages/kalendarz"; // Twój istniejący kalendarz (nie zmieniamy)
+
+function TopNav() {
+  const loc = useLocation();
+  const is = (p: string) => loc.pathname === p;
+  return (
+    <nav className="flex flex-wrap items-center gap-3 border-b bg-white px-4 py-3">
+      <Link to="/" className="font-semibold">AWON</Link>
+      <div className="flex items-center gap-3 text-sm">
+        <Link to="/" className={is("/") ? "underline" : ""}>Strona główna</Link>
+        <Link to="/app" className={is("/app") ? "underline" : ""}>Kalendarz</Link>
+        <Link to="/admin" className={is("/admin") ? "underline" : ""}>Panel administratora</Link>
+        <Link to="/login" className={is("/login") ? "underline" : ""}>Zaloguj</Link>
+      </div>
+    </nav>
+  );
+}
 
 export default function App() {
   return (
     <BrowserRouter>
+      <TopNav />
       <Routes>
-        {/* Landing */}
-        <Route path="/" element={<Landing />} />
-        <Route path="/app" element={<Landing />} />
-
-        {/* Logowanie */}
+        <Route path="/" element={<Home />} />
+        <Route path="/app" element={<Kalendarz />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/app/login" element={<Login />} />
-
-        {/* Moduły */}
-        <Route path="/kalendarz" element={<Kalendarz />} />
-        <Route path="/app/kalendarz" element={<Kalendarz />} />
-
-        <Route path="/obiekty" element={<Obiekty />} />
-        <Route path="/app/obiekty" element={<Obiekty />} />
-
-        {/* Panel admina systemu */}
         <Route path="/admin" element={<Admin />} />
-        <Route path="/app/admin" element={<Admin />} />
-
-        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
