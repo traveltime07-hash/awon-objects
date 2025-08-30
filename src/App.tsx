@@ -1,36 +1,146 @@
 // src/App.tsx
-import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Admin from "./pages/Admin";
-import Kalendarz from "./pages/kalendarz"; // Twój istniejący kalendarz (nie zmieniamy)
+import React, { useEffect, useState } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Link,
+  useLocation,
+} from "react-router-dom";
 
-function TopNav() {
+import Obiekty from "./pages/Obiekty";
+import Kalendarz from "./pages/kalendarz";
+import Login from "./pages/Login";
+import AdminOwnerPanel from "./pages/AdminOwnerPanel";
+
+type MeResponse =
+  | { ok: true; user: { email: string; role?: string } }
+  | { ok: false };
+
+function Nav() {
   const loc = useLocation();
-  const is = (p: string) => loc.pathname === p;
+  const is = (p: string) => loc.pathname === p || loc.pathname === "/app" + p;
   return (
-    <nav className="flex flex-wrap items-center gap-3 border-b bg-white px-4 py-3">
-      <Link to="/" className="font-semibold">AWON</Link>
-      <div className="flex items-center gap-3 text-sm">
-        <Link to="/" className={is("/") ? "underline" : ""}>Strona główna</Link>
-        <Link to="/app" className={is("/app") ? "underline" : ""}>Kalendarz</Link>
-        <Link to="/admin" className={is("/admin") ? "underline" : ""}>Panel administratora</Link>
-        <Link to="/login" className={is("/login") ? "underline" : ""}>Zaloguj</Link>
-      </div>
+    <nav className="flex gap-3 py-3 px-4">
+      <Link
+        to="/obiekty"
+        className={is("/obiekty") ? "font-semibold underline" : ""}
+      >
+        Twoje obiekty
+      </Link>
+      <Link
+        to="/kalendarz"
+        className={is("/kalendarz") ? "font-semibold underline" : ""}
+      >
+        Kalendarz
+      </Link>
+      <Link to="/admin" className={is("/admin") ? "font-semibold underline" : ""}>
+        Admin
+      </Link>
     </nav>
   );
 }
 
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<"loading" | "ok" | "nope">("loading");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/auth/me", { credentials: "include" });
+        const data = (await r.json()) as MeResponse;
+        setState(r.ok && (data as any)?.ok ? "ok" : "nope");
+      } catch {
+        setState("nope");
+      }
+    })();
+  }, []);
+
+  if (state === "loading") {
+    return (
+      <div className="min-h-screen grid place-items-center text-gray-500">
+        Sprawdzanie sesji…
+      </div>
+    );
+  }
+  if (state === "nope") {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+}
+
+function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<"loading" | "ok" | "nope">("loading");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch("/api/auth/me", { credentials: "include" });
+        const data = (await r.json()) as MeResponse;
+        if (r.ok && (data as any)?.ok && data.user?.role === "admin") {
+          setState("ok");
+        } else {
+          setState("nope");
+        }
+      } catch {
+        setState("nope");
+      }
+    })();
+  }, []);
+
+  if (state === "loading") {
+    return (
+      <div className="min-h-screen grid place-items-center text-gray-500">
+        Sprawdzanie uprawnień…
+      </div>
+    );
+  }
+  if (state === "nope") {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
-    <BrowserRouter>
-      <TopNav />
+    <BrowserRouter basename="/app">
+      <Nav />
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/app" element={<Kalendarz />} />
+        {/* public */}
         <Route path="/login" element={<Login />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+
+        {/* private (wymaga sesji) */}
+        <Route
+          path="/obiekty"
+          element={
+            <RequireAuth>
+              <Obiekty />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/kalendarz"
+          element={
+            <RequireAuth>
+              <Kalendarz />
+            </RequireAuth>
+          }
+        />
+
+        {/* admin-only */}
+        <Route
+          path="/admin"
+          element={
+            <RequireAdmin>
+              <AdminOwnerPanel />
+            </RequireAdmin>
+          }
+        />
+
+        {/* domyślne przekierowania */}
+        <Route path="/" element={<Navigate to="/obiekty" replace />} />
+        <Route path="*" element={<Navigate to="/obiekty" replace />} />
       </Routes>
     </BrowserRouter>
   );
