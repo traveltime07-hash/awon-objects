@@ -1,8 +1,8 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
-import Obiekty from "./pages/Obiekty";      // DUŻE „O” — jak w Twoim repo
-import Kalendarz from "./pages/kalendarz";  // małe „k” — jak w Twoim repo
-import Login from "./pages/Login";          // poniżej daję cały plik Login.tsx
+import Obiekty from "./pages/Obiekty";      // DUŻE „O” — tak jak w repo
+import Kalendarz from "./pages/kalendarz";  // małe „k” — tak jak w repo
+import Login from "./pages/Login";
 
 function Nav() {
   const loc = useLocation();
