@@ -8,6 +8,7 @@ import { Plus, X, KeyRound, DollarSign, Upload, Download } from "lucide-react";
 // - Import CSV (+ wzór CSV)
 // - Szybkie filtry: pokój + wyszukiwarka gościa/ID
 // - Lista zadań (30 dni)
+// - Sekcja Import/Eksport przeniesiona POD kalendarze + dymki z instrukcją na hover
 // ============================================================================
 
 // --- Typy ---
@@ -701,7 +702,6 @@ function KalendarzPanel({ onOpenAgenda }:{ onOpenAgenda: ()=>void }){
         const text = String(reader.result || "");
         const imported = parseCSVBookings(text);
         if(imported.length===0){ alert("Nie znaleziono poprawnych wierszy CSV."); return; }
-        // Wstawiaj bez konfliktów
         let accepted: Booking[] = [];
         let skipped = 0;
         const base = [...bookings];
@@ -743,7 +743,7 @@ function KalendarzPanel({ onOpenAgenda }:{ onOpenAgenda: ()=>void }){
 
   return (
     <div className="space-y-4">
-      {/* Pasek sterowania */}
+      {/* Pasek sterowania (bez import/eksport) */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-2">
           <button onClick={()=> setMonth0(m=> m===0 ? (setYear(y=>y-1),11) : m-1)} className="rounded-xl bg-blue-600 px-3 py-2 text-sm text-white shadow hover:bg-blue-700">Poprzedni</button>
@@ -771,11 +771,6 @@ function KalendarzPanel({ onOpenAgenda }:{ onOpenAgenda: ()=>void }){
 
           <button onClick={()=>openAdd()} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-3 py-2 text-sm text-white shadow hover:bg-blue-700"><Plus className="h-4 w-4"/> Dodaj</button>
           <button onClick={onOpenAgenda} className="rounded-xl bg-blue-600 px-3 py-2 text-sm text-white shadow hover:bg-blue-700">Lista zadań</button>
-
-          <button onClick={exportICS} className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-gray-50"><Download className="h-4 w-4"/> Eksport ICS</button>
-          <button onClick={onImportClick} className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-gray-50"><Upload className="h-4 w-4"/> Import CSV</button>
-          <button onClick={downloadCSVTemplate} className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">Pobierz wzór CSV</button>
-          <input ref={fileRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
         </div>
       </div>
 
@@ -783,8 +778,6 @@ function KalendarzPanel({ onOpenAgenda }:{ onOpenAgenda: ()=>void }){
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {roomsToShow.map(room=>{
           const bksAll=bookings.filter(b=>b.room===room);
-          // Ikonki (start) filtrujemy po search, ale malowanie tła zostawiamy z pełnych bksAll,
-          // żeby nie zafałszować zajętości.
           const bksForIcons = search ? bksAll.filter(b => matchesSearch(b, search)) : bksAll;
 
           return (
@@ -796,7 +789,7 @@ function KalendarzPanel({ onOpenAgenda }:{ onOpenAgenda: ()=>void }){
                   <div key={wi} className="grid grid-cols-7 gap-1">
                     {w.map(d=>{
                       const dd=parseInt(d.date.slice(-2),10);
-                      const style=cellPaint(d.date,bksAll); // malowanie na podstawie pełnej listy
+                      const style=cellPaint(d.date,bksAll);
                       const dayBks=bookingsOnDate(d.date,bksAll);
                       const hasAny=dayBks.length>0; const startBk=bookingsOnDate(d.date,bksForIcons).find(b=> b.start===d.date);
                       const info = holidayInfoPL(d.date, showPopular);
@@ -831,6 +824,48 @@ function KalendarzPanel({ onOpenAgenda }:{ onOpenAgenda: ()=>void }){
             </div>
           );
         })}
+      </div>
+
+      {/* 🔽 RZADKO UŻYWANE: Import / Eksport + opisy na hover */}
+      <div className="rounded-2xl border p-3">
+        <div className="mb-2 text-sm font-medium">Import / Eksport (narzędzia dodatkowe)</div>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Eksport ICS */}
+          <div className="group relative">
+            <button onClick={exportICS} className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">
+              <Download className="h-4 w-4"/> Eksport ICS
+            </button>
+            <div className="pointer-events-none absolute left-0 top-[calc(100%+6px)] z-20 w-80 rounded-xl border bg-white p-3 text-xs text-gray-700 shadow-lg opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition">
+              Pobiera plik <b>.ics</b> z aktualnymi rezerwacjami. Taki plik możesz zaimportować do
+              Google Calendar, Outlook lub Apple Calendar, aby obejrzeć terminy w innych kalendarzach.
+              Nie modyfikuje danych w systemie — tylko eksport.
+            </div>
+          </div>
+
+          {/* Import CSV */}
+          <div className="group relative">
+            <button onClick={onImportClick} className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">
+              <Upload className="h-4 w-4"/> Import CSV
+            </button>
+            <div className="pointer-events-none absolute left-0 top-[calc(100%+6px)] z-20 w-96 rounded-xl border bg-white p-3 text-xs text-gray-700 shadow-lg opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition">
+              Wczytuje <b>nowe</b> rezerwacje z pliku CSV. Wymagane kolumny: <code>room,start,end</code>.
+              Obsługiwane też m.in.: <code>guestName, guestPhone, guestEmail, totalPrice, depositPaid, preliminary, preliminaryUntil, keysNotified, payOnArrival, balanceDueDate</code>.<br/>
+              Daty w formacie <code>YYYY-MM-DD</code>, separator <code>,</code> lub <code>;</code>. Wiersze z błędami/konfliktem terminów są pomijane. Nic nie nadpisujesz — import tylko dopisuje.
+            </div>
+          </div>
+          <input ref={fileRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+
+          {/* Wzór CSV */}
+          <div className="group relative">
+            <button onClick={downloadCSVTemplate} className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-gray-50">
+              Pobierz wzór CSV
+            </button>
+            <div className="pointer-events-none absolute left-0 top-[calc(100%+6px)] z-20 w-80 rounded-xl border bg-white p-3 text-xs text-gray-700 shadow-lg opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition">
+              Pobiera gotowy <b>szablon CSV</b> z przykładowym wierszem. Otwórz w Excelu/Sheets, wpisz swoje rezerwacje,
+              zapisz jako CSV i wczytaj przyciskiem „Import CSV”.
+            </div>
+          </div>
+        </div>
       </div>
 
       {addOpen && (
