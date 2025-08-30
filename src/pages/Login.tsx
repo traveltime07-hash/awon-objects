@@ -1,117 +1,84 @@
+// src/pages/Login.tsx
 import React, { useState } from "react";
 
-type LoginResponse =
-  | { ok: true; user?: { email?: string; role?: string } }
-  | { ok: false; message?: string };
-
 export default function Login() {
-  const [email, setEmail] = useState("traveltime07@gmail.com");
-  const [password, setPassword] = useState("12345678aA");
+  const [email, setEmail] = useState("traveltime07@gmail.com"); // podpowiedź
+  const [password, setPassword] = useState("12345678aA");       // podpowiedź
   const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  async function submit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setErr(null);
+    setError(null);
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password })
       });
+      const data = await res.json().catch(() => ({}));
 
-      const data = (await res.json()) as LoginResponse;
-
-      if (!res.ok || !("ok" in data) || !data.ok) {
-        const msg =
-          (data as any)?.message ||
-          "Błędny login lub hasło. Spróbuj ponownie.";
-        setErr(msg);
+      if (!res.ok) {
+        setError((data && (data.message || data.error)) || "Nieprawidłowe dane logowania");
         return;
       }
 
-      // Po udanym logowaniu serwer ustawia httpOnly cookie.
-      // Sprawdzamy rolę i przekierowujemy.
-      const role = (data as any)?.user?.role;
+      // jeśli endpoint zwraca token/user — zapisz (opcjonalnie)
+      if (data?.token) localStorage.setItem("awon_token", data.token);
+      if (data?.user)  localStorage.setItem("awon_user", JSON.stringify(data.user));
 
-      // Projekt działa z <BrowserRouter basename="/app">,
-      // więc ścieżki SPA mają prefiks /app
-      const go = (p: string) => {
-        const withBase = p.startsWith("/app") ? p : "/app" + p;
-        window.location.href = withBase;
-      };
-
-      if (role === "admin") {
-        go("/admin");
-      } else {
-        // zwykły właściciel -> jego panel obiektu
-        go("/obiekty");
-      }
-    } catch (e) {
-      console.error(e);
-      setErr("Nie udało się połączyć z serwerem.");
+      // po zalogowaniu nawigujemy do kalendarza lub obiektów
+      window.location.href = "/app/kalendarz";
+    } catch (err: any) {
+      setError("Problem z połączeniem. Spróbuj ponownie.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen grid place-items-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm rounded-2xl border bg-white p-6 shadow-md">
-        <div className="mb-4">
-          <div className="text-lg font-semibold">Zaloguj się</div>
-          <div className="text-sm text-gray-500">
-            Podaj e-mail i hasło do panelu.
-          </div>
-        </div>
+    <div className="mx-auto max-w-md p-6">
+      <h1 className="mb-4 text-xl font-semibold">Logowanie administratora</h1>
+      <form onSubmit={onSubmit} className="space-y-3 rounded-xl border bg-white p-4 shadow-sm">
+        <label className="block">
+          <div className="text-sm text-gray-600">E-mail</div>
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="mt-1 w-full rounded-md border px-3 py-2"
+            placeholder="email"
+          />
+        </label>
 
-        <form onSubmit={submit} className="grid gap-3">
-          <label className="grid gap-1">
-            <span className="text-sm text-gray-600">E-mail</span>
-            <input
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="rounded-lg border px-3 py-2 text-sm"
-              required
-            />
-          </label>
+        <label className="block">
+          <div className="text-sm text-gray-600">Hasło</div>
+          <input
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="mt-1 w-full rounded-md border px-3 py-2"
+            placeholder="hasło"
+          />
+        </label>
 
-          <label className="grid gap-1">
-            <span className="text-sm text-gray-600">Hasło</span>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="rounded-lg border px-3 py-2 text-sm"
-              required
-            />
-          </label>
+        {error && <div className="rounded-md bg-red-50 p-2 text-sm text-red-700">{error}</div>}
 
-          {err && (
-            <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-              {err}
-            </div>
-          )}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-60"
+        >
+          {loading ? "Logowanie…" : "Zaloguj"}
+        </button>
+      </form>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="mt-1 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-blue-700 disabled:opacity-60"
-          >
-            {loading ? "Logowanie…" : "Zaloguj"}
-          </button>
-        </form>
-
-        <div className="mt-4 text-xs text-gray-500">
-          Po zalogowaniu użytkownik z rolą <b>admin</b> trafia do{" "}
-          <code>/app/admin</code>, pozostali do <code>/app/obiekty</code>.
-        </div>
-      </div>
+      <p className="mt-4 text-sm text-gray-500">
+        Po zalogowaniu przejdziesz do aplikacji (sekcja <span className="font-medium">/app</span>).
+      </p>
     </div>
   );
 }
