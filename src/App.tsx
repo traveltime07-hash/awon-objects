@@ -1,25 +1,15 @@
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
-import Obiekty from "./pages/Obiekty";     // UWAGA: wielkie „O”
-import Kalendarz from "./pages/Kalendarz"; // UWAGA: wielkie „K” — jak Twój plik
+import Obiekty from "./pages/Obiekty";      // wielkie „O”
+import Kalendarz from "./pages/kalendarz";  // małe „k” — zgodnie z nazwą pliku
 
 function Nav() {
   const loc = useLocation();
   const is = (p: string) => loc.pathname === p;
   return (
     <nav className="flex flex-wrap items-center gap-4 border-b px-4 py-3">
-      <Link
-        to="/obiekty"
-        className={`text-sm ${is("/obiekty") ? "font-semibold underline" : "text-gray-700 hover:underline"}`}
-      >
-        Twoje obiekty
-      </Link>
-      <Link
-        to="/kalendarz"
-        className={`text-sm ${is("/kalendarz") ? "font-semibold underline" : "text-gray-700 hover:underline"}`}
-      >
-        Kalendarz
-      </Link>
+      <Link to="/obiekty"   className={`text-sm ${is("/obiekty") ? "font-semibold underline" : "text-gray-700 hover:underline"}`}>Twoje obiekty</Link>
+      <Link to="/kalendarz" className={`text-sm ${is("/kalendarz") ? "font-semibold underline" : "text-gray-700 hover:underline"}`}>Kalendarz</Link>
     </nav>
   );
 }
