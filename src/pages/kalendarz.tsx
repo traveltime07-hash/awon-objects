@@ -37,7 +37,7 @@ export type Task = { id: string; text: string; done?: boolean };
 function toISO(d: Date): string { const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,"0"); const day=String(d.getDate()).padStart(2,"0"); return `${y}-${m}-${day}`; }
 function isoToDate(iso:string){ return new Date(parseInt(iso.slice(0,4)), parseInt(iso.slice(5,7))-1, parseInt(iso.slice(8,10))); }
 function mondayIndex(jsDay:number){ return (jsDay+6)%7; }
-function addDays(d: Date, days: number){ return new Date(d.getFullYear(),d.getMonth(),d.getDate()+days); }
+function addDays(d: Date, days: number){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()+days); }
 function buildMonthWeeks(year:number, month0:number){
   const first=new Date(year,month0,1);
   let start=new Date(first);
@@ -551,4 +551,203 @@ function KalendarzPanel({ onOpenAgenda }:{ onOpenAgenda: ()=>void }){
           open={!!addOpen}
           defaults={addOpen}
           rooms={rooms}
-          bookings={
+          bookings={bookings}
+          setBookings={setBookings}
+          onClose={()=> setAddOpen(null)}
+          showPopular={showPopular}
+        />
+      )}
+
+      {dayOpen && (
+        <DayBookingsModal
+          room={dayOpen.room}
+          date={dayOpen.date}
+          bookings={bookings}
+          onClose={()=> setDayOpen(null)}
+          onOpenDetails={(b)=>{ setDayOpen(null); setEditBk(b); }}
+          onAdd={()=>{ openAdd(dayOpen.room, dayOpen.date); setDayOpen(null); }}
+        />
+      )}
+
+      {editBk && (
+        <EditBookingModal
+          open={!!editBk}
+          booking={editBk}
+          onClose={()=> setEditBk(null)}
+          bookings={bookings}
+          setBookings={setBookings}
+          rooms={rooms}
+        />
+      )}
+    </div>
+  );
+}
+
+// --- Agenda (30 dni) ---
+type AgendaItem = { key: string; bookingId: string; room: string; label: string; kind: 'arrival'|'departure'|'clean'|'collect'|'deposit-refund'|'keys' };
+type AgendaDay = { date: string; items: AgendaItem[] };
+
+function useAgendaDone(){
+  const STORAGE_KEY = 'awon_agenda_done_v1';
+  const [done,setDone]=useState<Record<string,boolean>>(()=>{ try{ const raw=localStorage.getItem(STORAGE_KEY); return raw? JSON.parse(raw): {}; }catch{ return {}; } });
+  const mark=(key:string, val:boolean)=> setDone(prev=>{ const next={...prev,[key]:val}; try{ localStorage.setItem('awon_agenda_done_v1', JSON.stringify(next)); }catch{} return next; });
+  const markMany=(keys:string[], val:boolean)=> setDone(prev=>{ const next={...prev}; for(const k of keys){ next[k]=val; } try{ localStorage.setItem('awon_agenda_done_v1', JSON.stringify(next)); }catch{} return next; });
+  return { done, mark, markMany };
+}
+
+function generateAgenda(bookings:Booking[], fromDateISO:string, days=30): AgendaDay[]{
+  // Wejście: fromDateISO w formacie YYYY-MM-DD
+  const base = fromDateISO && /^\d{4}-\d{2}-\d{2}$/.test(fromDateISO) ? isoToDate(fromDateISO) : new Date();
+  const out: AgendaDay[] = [];
+  for(let i=0;i<days;i++){
+    const dateISO = toISO(addDays(base, i));
+    const items: AgendaItem[] = [];
+    for(const b of bookings){
+      if(b.start===dateISO){
+        items.push({ key:`${dateISO}|${b.id}|arrival`, bookingId:b.id, room:b.room, label:`Przyjazd – ${b.guest||b.guestName||'Gość'}`, kind:'arrival' });
+        if(!b.keysNotified){ items.push({ key:`${dateISO}|${b.id}|keys`, bookingId:b.id, room:b.room, label:`Wysłać instrukcje dot. kluczy`, kind:'keys' }); }
+        if(!b.balancePaid && computeAmountDue(b)>0 && (b.payOnArrival || !b.balanceDueDate)){
+          items.push({ key:`${dateISO}|${b.id}|collect`, bookingId:b.id, room:b.room, label:`Pobrać dopłatę (${computeAmountDue(b)} PLN)`, kind:'collect' });
+        }
+      }
+      if(b.end===dateISO){
+        items.push({ key:`${dateISO}|${b.id}|departure`, bookingId:b.id, room:b.room, label:`Wyjazd – ${b.guest||b.guestName||'Gość'}`, kind:'departure' });
+        items.push({ key:`${dateISO}|${b.id}|clean`, bookingId:b.id, room:b.room, label:`Sprzątanie po wyjeździe`, kind:'clean' });
+        if(b.securityDeposit?.status==='paid'){
+          items.push({ key:`${dateISO}|${b.id}|deposit-refund`, bookingId:b.id, room:b.room, label:`Zwrot kaucji (${b.securityDeposit?.refundMethod==='cash'?'gotówką':'przelewem'})`, kind:'deposit-refund' });
+        }
+      }
+      if(!b.balancePaid && computeAmountDue(b)>0 && b.balanceDueDate===dateISO && !b.payOnArrival){
+        items.push({ key:`${dateISO}|${b.id}|collect-due`, bookingId:b.id, room:b.room, label:`Termin dopłaty – pobrać ${computeAmountDue(b)} PLN`, kind:'collect' });
+      }
+    }
+    if(items.length>0){
+      items.sort((a,b)=> a.room.localeCompare(b.room) || a.kind.localeCompare(b.kind));
+      out.push({ date: dateISO, items });
+    }
+  }
+  return out;
+}
+
+function AgendaPage({ onBack }:{ onBack: ()=>void }){
+  const [rooms]=useRooms();
+  const [bookings]=useBookings();
+  const today = toISO(new Date());
+  const agenda = useMemo(()=> generateAgenda(bookings, today, 30), [bookings]);
+  const { done, mark, markMany } = useAgendaDone();
+
+  // Prostą pomocniczą funkcją do polskich dni tygodnia
+  function weekdayPL(iso:string){ try{ return new Date(parseInt(iso.slice(0,4)), parseInt(iso.slice(5,7))-1, parseInt(iso.slice(8,10))).toLocaleDateString('pl-PL', { weekday:'long' }); } catch { return ''; } }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-lg font-semibold">Lista zadań (30 dni)</div>
+        <button onClick={onBack} className="rounded-xl bg-blue-600 px-3 py-2 text-sm text-white shadow hover:bg-blue-700">Powrót do kalendarza</button>
+      </div>
+
+      {/* Lista pod kalendarzem – agregat dla WSZYSTKICH pokoi */}
+      <div className="rounded-2xl border p-3">
+        <div className="mb-2 text-sm text-gray-600">Z dzisiejszej daty: {today}</div>
+        {agenda.length===0 ? (
+          <div className="text-sm text-gray-500">Brak zadań w najbliższych 30 dniach.</div>
+        ) : (
+          <div className="space-y-3">
+            {agenda.map(day=>{
+              const allKeys = day.items.map(i=> i.key);
+              const allDone = allKeys.every(k=> !!done[k]);
+              return (
+                <div key={day.date} className="rounded-xl border p-2">
+                  <div className="mb-1 flex items-center justify-between">
+                    <div className="text-sm font-medium">{day.date} — <span className="capitalize text-gray-600">{weekdayPL(day.date)}</span></div>
+                    <button onClick={()=> markMany(allKeys, !allDone)} className="rounded-md border px-2 py-1 text-xs hover:bg-gray-50">{allDone? 'Odznacz wszystko' : 'Zaznacz wszystko'}</button>
+                  </div>
+                  <div className="space-y-1">
+                    {day.items.map(item=> (
+                      <label key={item.key} className="flex items-center justify-between rounded-lg border p-2 text-sm">
+                        <span className="flex-1">
+                          <span className="mr-2 inline-flex min-w-[64px] items-center justify-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{item.room}</span>
+                          {item.label}
+                        </span>
+                        <input type="checkbox" className="h-4 w-4" checked={!!done[item.key]} onChange={(e)=> mark(item.key, e.target.checked)} />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --- Root komponent + self-testy ---
+export default function Kalendarz(){
+  const [view, setView] = useState<'calendar'|'agenda'>('calendar');
+  useEffect(()=>{
+    // 🧪 Testy ust. świąt i popularnych dni
+    console.assert(isPLHoliday('2025-01-01'), '2025-01-01 powinien być ustawowo wolny (Nowy Rok)');
+    console.assert(!!holidayInfoPL('2025-05-02', true), '2025-05-02 powinien być popularny (Dzień Flagi)');
+    // Wielkanoc 2025: 2025-04-20 (niedziela)
+    console.assert(holidayInfoPL('2025-04-20', false)?.kind==='statutory', '2025-04-20 Niedziela Wielkanocna');
+
+    // 🧪 Paint/clear
+    const testBk: Booking = { id:'T1', room:'Ap. 1', start:'2025-09-20', end:'2025-09-24', preliminary:true } as any;
+    const midStyle = cellPaint('2025-09-21', [testBk]);
+    console.assert(!!(midStyle.backgroundColor || midStyle.backgroundImage), 'Paint should exist for day within booking');
+    const clearedStyle = cellPaint('2025-09-21', []);
+    console.assert(clearedStyle.backgroundImage==='none' && clearedStyle.backgroundColor==='transparent', 'Paint should clear when no bookings');
+
+    // 🧪 Granica dwóch wstępnych
+    const A: Booking = { id:'A', room:'Ap. 1', start:'2025-10-10', end:'2025-10-12', preliminary:true } as any;
+    const B: Booking = { id:'B', room:'Ap. 1', start:'2025-10-12', end:'2025-10-14', preliminary:true } as any;
+    const boundary = cellPaint('2025-10-12', [A,B]);
+    console.assert(typeof boundary.backgroundImage==='string' && boundary.backgroundImage.includes('linear-gradient'), 'Boundary separator should render');
+
+    // 🧪 ICS struktura
+    const ics = icsExport([testBk]);
+    console.assert(ics.includes('BEGIN:VCALENDAR') && ics.includes('BEGIN:VEVENT') && ics.includes('END:VCALENDAR'), 'ICS export basic structure');
+
+    // 🧪 Konflikty
+    const C: Booking = { id:'C', room:'Ap. 9', start:'2025-11-01', end:'2025-11-05' } as any;
+    const D: Booking = { id:'D', room:'Ap. 9', start:'2025-11-04', end:'2025-11-06' } as any;
+    console.assert(roomHasConflict([C], 'Ap. 9', D.start, D.end)===true, 'Conflict detection overlapping 1 day');
+    console.assert(roomHasConflict([C], 'Ap. 9', '2025-11-05', '2025-11-07')===false, 'No conflict when touching checkout day');
+    console.assert(isRoomBusyOn([C], 'Ap. 9', '2025-11-01')===true && isRoomBusyOn([C], 'Ap. 9', '2025-11-05')===false, 'Busy inclusive of start, exclusive of end');
+
+    // 🧪 Lista miesięcy idzie do przodu
+    const opts = buildForwardMonthOptions(2025, 7, 3); // 7 => sierpień
+    console.assert(opts[0].value==='2025-07' && opts[1].value==='2025-08', 'Month list forward from current');
+
+    // 🧪 Zwykłe rezerwacje nie używają czerwieni
+    const normal: Booking = { id:'N1', room:'Ap. 1', start:'2025-08-21', end:'2025-08-22' } as any;
+    const normalColorStyle = cellPaint('2025-08-21', [normal]);
+    const s = (normalColorStyle.backgroundImage||'') + '|' + (normalColorStyle.backgroundColor||'');
+    console.assert(!s.includes('#ef4444') && !/(#f43f5e|#fb7185|#ec4899)/i.test(s), 'Non-preliminary should not look red/pink');
+
+    // 🧪 Agenda zadań – podstawowe przypadki
+    const agenda = generateAgenda([
+      { id:'A', room:'Ap. 1', start:'2025-09-01', end:'2025-09-03', totalPrice:1000, depositPaid:200, payOnArrival:true } as any,
+      { id:'B', room:'Ap. 2', start:'2025-09-01', end:'2025-09-02', securityDeposit:{ status:'paid', amount:200, refundMethod:'cash' } } as any,
+      { id:'C', room:'Ap. 3', start:'2025-09-04', end:'2025-09-06', totalPrice:900, depositPaid:100, balanceDueDate:'2025-09-05' } as any,
+    ], '2025-09-01', 6);
+    const day1 = agenda.find(d=> d.date==='2025-09-01');
+    const day5 = agenda.find(d=> d.date==='2025-09-05');
+    console.assert(day1 && day1.items.some(i=> i.kind==='arrival') && day1.items.some(i=> i.kind==='collect'), 'Arrival & collect on payOnArrival');
+    console.assert(day5 && day5.items.some(i=> i.kind==='collect'), 'Collect on balance due date');
+  },[]);
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-900">
+      <main className="mx-auto max-w-6xl px-4 py-6">
+        <div className="mb-4 text-lg font-semibold">{view==='calendar'? 'Kalendarz (panel)' : 'Kalendarz (lista zadań)'}</div>
+        {view==='calendar' ? (
+          <KalendarzPanel onOpenAgenda={()=> setView('agenda')}/>
+        ) : (
+          <AgendaPage onBack={()=> setView('calendar')}/>
+        )}
+      </main>
+    </div>
+  );
+}
