@@ -1,6 +1,20 @@
 {
+  "cleanUrls": true,
+  "trailingSlash": false,
+
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/" }
+
+    { "source": "/app", "destination": "/" },
+    { "source": "/app/(.*)", "destination": "/" }
+  ],
+
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
   ]
 }
